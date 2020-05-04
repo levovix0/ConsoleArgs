@@ -93,8 +93,7 @@ namespace calib
     return *it;
   }
   inline std::string ConsoleArgs::getValue(std::string_view arg, std::string_view defaultV) {
-    auto v = getValue(arg);
-    return v == std::nullopt? std::string(defaultV) : *v;
+    return getValue(arg).value_or(defaultV);
   }
 
   inline std::optional<std::string> ConsoleArgs::next() {

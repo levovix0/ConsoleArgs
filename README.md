@@ -18,9 +18,8 @@ if (args.has("-h") || args.has("--help")) {
 
 ```c++
 // работает как с  `-mode X`  так и с  `-mode=X`
-auto _mode = args.getValue("-mode");
-auto mode = _mode == nullopt? "standard" : *_mode;
-// или короче:
+auto mode = args.getValue("-mode").value_or("standard");
+// или короче
 auto mode = args.getValue("-mode", "standard");
 ```
 
