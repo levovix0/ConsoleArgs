@@ -10,7 +10,7 @@ namespace calib
   struct ConsoleArgs
   {
     std::vector<std::string> args;
-    bool blockArgs = true;
+    bool blockArgs = true;  // запоминать ли просматриваемые аргументы (для next())
 
     ConsoleArgs() = default;
     ConsoleArgs(int argc, char** argv);
@@ -21,18 +21,19 @@ namespace calib
     ConsoleArgs& operator=(ConsoleArgs&& move) = default;
 
     [[nodiscard]] size_t count() const;
-    [[nodiscard]] std::string_view operator[](size_t n) const;
+    [[nodiscard]] std::string& operator[](size_t n);
+    [[nodiscard]] std::string const& operator[](size_t n) const;
 
     [[nodiscard]] bool has(std::string_view arg);
-    [[nodiscard]] bool has(std::regex regex_s);
+    [[nodiscard]] bool has(std::regex&& regex_s);
 
-    [[nodiscard]] std::optional<std::string> get(std::string_view arg);
-    [[nodiscard]] std::optional<std::string> get(std::regex regex_s);
+    [[nodiscard]] std::optional<std::string> get(std::regex&& regex_s);
 
-    // берёт значение у параметра: -i ~/text.txt  ->  ~/text.txt,  std=c++17  ->  c++17
+    // берёт значение у параметра:  -i ~/text.txt  ->  ~/text.txt,  std=c++17  ->  c++17
     [[nodiscard]] std::optional<std::string> getValue(std::string_view arg);
+    [[nodiscard]] std::string getValue(std::string_view arg, std::string_view defaultV);
 
-    // Возвращает следующий аргумент, который не является настройкой
+    // Возвращает следующий аргумент, который не был просмотрен до этого
     [[nodiscard]] std::optional<std::string> next();
 
   private:
@@ -46,44 +47,39 @@ namespace calib
 
   inline ConsoleArgs::ConsoleArgs(int argc, char** argv) {
     for (int i = 1; i < argc; ++i)
-    args.emplace_back(argv[i]);
-   }
+      args.emplace_back(argv[i]);
+  }
 
   inline size_t ConsoleArgs::count() const { return args.size(); }
-  inline std::string_view ConsoleArgs::operator[](size_t n) const { return args[n]; }
+  inline std::string& ConsoleArgs::operator[](size_t n) { return args[n]; }
+  inline std::string const& ConsoleArgs::operator[](size_t n) const { return args[n]; }
 
   inline bool ConsoleArgs::has(std::string_view arg) {
     auto a = std::find(args.begin(), args.end(), arg);
     if (a != args.end()) { blockArg(a - args.begin()); return true; }
     return false;
-   }
-  inline bool ConsoleArgs::has(std::regex regex_s) {
+  }
+  inline bool ConsoleArgs::has(std::regex&& regex_s) {
     auto a = std::find_if(args.begin(), args.end(), [&regex_s](std::string& s) {
       return std::regex_search(s, regex_s);
      });
     if (a != args.end()) { blockArg(a - args.begin()); return true; }
     return false;
-   }
-
-  inline std::optional<std::string> ConsoleArgs::get(std::string_view arg) {
-    auto it = std::find(args.begin(), args.end(), arg);
-    if (it == args.end()) return std::nullopt;
-    blockArg(it - args.begin());
-    return *it;
-   }
-  inline std::optional<std::string> ConsoleArgs::get(std::regex regex_s) {
+  }
+  
+  inline std::optional<std::string> ConsoleArgs::get(std::regex&& regex_s) {
     auto it = std::find_if(args.begin(), args.end(), [&regex_s](std::string& s) {
       return std::regex_search(s, regex_s);
      });
     if (it == args.end()) return std::nullopt;
     blockArg(it - args.begin());
     return *it;
-   }
+  }
 
   inline std::optional<std::string> ConsoleArgs::getValue(std::string_view arg) {
     auto it = std::find_if(args.begin(), args.end(), [arg](std::string& s) {
       return (s.size() == arg.size() && s == arg) || (s.size() > arg.size() && s.substr(0, arg.size()) == arg && s[arg.size()] == '=');
-     });
+    });
     if (it == args.end()) return std::nullopt;
     auto itpos = it - args.begin();
     auto&& sv = *it;
@@ -95,18 +91,22 @@ namespace calib
     blockArg(itpos);
     blockArg(itpos + 1);
     return *it;
-   }
+  }
+  inline std::string ConsoleArgs::getValue(std::string_view arg, std::string_view defaultV) {
+    auto v = getValue(arg);
+    return v == std::nullopt? std::string(defaultV) : *v;
+  }
 
   inline std::optional<std::string> ConsoleArgs::next() {
     auto it = std::find(blockedArgs.begin(), blockedArgs.end(), false);
     if ((it - blockedArgs.begin()) >= args.size()) return std::nullopt;
     return args[it - blockedArgs.begin()];
-   }
+  }
 
   inline void ConsoleArgs::blockArg(size_t n) {
     if (!blockArgs) return;
     for (size_t i = blockedArgs.size(); i <= n; ++i)
     blockedArgs.emplace_back(false);
     blockedArgs[n] = true;
-   }
+  }
 }
