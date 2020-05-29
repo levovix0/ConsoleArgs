@@ -30,8 +30,9 @@ namespace calib
     [[nodiscard]] std::optional<std::string> get(std::regex&& regex_s);
 
     // берёт значение у параметра:  -i ~/text.txt  ->  ~/text.txt,  std=c++17  ->  c++17
-    [[nodiscard]] std::optional<std::string> getValue(std::string_view arg);
-    [[nodiscard]] std::string getValue(std::string_view arg, std::string_view defaultV);
+    [[nodiscard]] std::optional<std::string> value(std::string_view arg);
+    [[nodiscard]] std::string value(std::string_view arg, std::string&& defaultV);
+    [[nodiscard]] std::optional<std::string> value_or_next(std::string_view arg);
 
     // Возвращает следующий аргумент, который не был просмотрен до этого
     [[nodiscard]] std::optional<std::string> next();
@@ -76,7 +77,7 @@ namespace calib
     return *it;
   }
 
-  inline std::optional<std::string> ConsoleArgs::getValue(std::string_view arg) {
+  inline std::optional<std::string> ConsoleArgs::value(std::string_view arg) {
     auto it = std::find_if(args.begin(), args.end(), [arg](std::string& s) {
       return (s.size() == arg.size() && s == arg) || (s.size() > arg.size() && s.substr(0, arg.size()) == arg && s[arg.size()] == '=');
     });
@@ -92,8 +93,8 @@ namespace calib
     blockArg(itpos + 1);
     return *it;
   }
-  inline std::string ConsoleArgs::getValue(std::string_view arg, std::string_view defaultV) {
-    return getValue(arg).value_or(defaultV);
+  inline std::string ConsoleArgs::value(std::string_view arg, std::string&& defaultV) {
+    return value(arg).value_or(defaultV);
   }
 
   inline std::optional<std::string> ConsoleArgs::next() {
@@ -107,5 +108,9 @@ namespace calib
     for (size_t i = blockedArgs.size(); i <= n; ++i)
     blockedArgs.emplace_back(false);
     blockedArgs[n] = true;
+  }
+  std::optional<std::string> ConsoleArgs::value_or_next(std::string_view arg) {
+    auto v = value(arg);
+    return v? v : next();
   }
 }
